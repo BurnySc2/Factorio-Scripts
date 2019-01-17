@@ -1,0 +1,818 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Burny's Train Station Blueprint Creator</title>
+
+    <script src="pako.js"></script>
+    <script src="base64.js"></script>
+    <script src='download.js'></script>
+    <script type="text/javascript">
+    
+        function decode(blueprint) {
+            // thanks to https://factorio.tmin10.ru/
+            var base64 = blueprint.substring(1)
+            // console.log("substr", base64)
+            var zippedString = Base64.decode(base64)
+            // console.log("zipped", zippedString)
+            var unzipped = pako.inflate(zippedString)
+            // console.log("unzipped", unzipped)
+            var string = new TextDecoder("utf-8").decode(unzipped)	  
+            // console.log("string", string)
+            var jsonObject = JSON.parse(string)
+            // console.log("jsonObj", jsonObject)
+            // var jsonString = JSON.stringify(jsonObject, null, 4)
+            // console.log("jsonString", jsonString)
+            return jsonObject
+        }
+        
+        function encode(jsonObject) {
+            // thanks to https://factorio.tmin10.ru/
+            // console.log("jsonObject", JSON.stringify(jsonObject, null, 4))
+            var jsonString = JSON.stringify(jsonObject)
+            var encoded = new TextEncoder("utf-8").encode(jsonString)	  
+            // console.log("encoded", encoded)
+            var zip = pako.deflate(encoded, {level: 7});
+            /* Test benchmarks for 1-100-1 trains
+            level 9: 800 ms - length: 616501
+            level 8: 750 ms - length: 616517
+            level 7: 575 ms - length: 645545
+            level 6: 530 ms - length: 651909
+            level 5: 540 ms - length: 648869
+            level 4: 535 ms - length: 674409
+            level 3: 425 ms - length: 729837
+            level 2: 435 ms - length: 739685
+            level 1: 440 ms - length: 746329
+            */
+            // console.log("zipped", zip)
+            base64 = Base64.encodeU(zip)
+            // console.log("base64", base64)
+            var bstring = "0" + base64;
+            console.log("Blueprint string length:", bstring.length);
+            
+            return bstring
+        }
+    </script>
+    <script src="tsbc.js"></script>
+    <style>
+        html, body {
+            background-color: #1e1e1e;
+            background-image: url("factoriocog.png");
+            background-repeat: repeat;
+            display: grid;
+            justify-content: center;
+            grid-template-columns: auto auto auto;
+        }
+        .grid-container {
+            width: 25em;
+            /* width: auto; */
+            /* justify-content: center;
+            align-content: center; */
+            
+            display: grid;
+            grid-template-columns: auto;
+            grid-template-rows: auto;
+            /* background-color: #2196F3; */
+            grid-gap: 5px;
+            padding: 5px;
+        }
+        .row-container{
+            display: grid;
+            background-color: #c8c8c8;
+            padding: 5px;
+            grid-gap: 3px;
+        }     
+        /* Limits the rows to 2 entries per column */
+        .limit1 {
+            grid-template-columns: auto;
+        }
+        .limit2 {
+            justify-content: start;
+            grid-template-columns: auto auto;
+        }
+        select, input, .text {
+            grid-area: span 1 / span 1;
+        }
+        .title {
+            font-weight: bolder;
+        }
+        .center {
+            text-align: center;
+            text-align-last: center;
+        }
+
+        /* Tooltip management */
+        .tooltip {            
+            position: relative;
+            display: inline-block;
+            text-decoration: underline;
+            /* font-family: Arial, Helvetica, sans-serif; */
+            /* font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif; */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            /* font-family: Verdana, Geneva, Tahoma, sans-serif */
+        }
+        .ul.li {
+            /* font-family: 'Times New Roman', Times, serif */
+        }
+
+        /* Tooltip text */
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 200px;
+            background-color: #555;
+            color: #fff;
+            text-align: center;
+            padding: 5px 0;
+            border-radius: 6px;
+
+            /* Position the tooltip text */
+            position: absolute;
+            z-index: 1;
+            top: 125%;
+            left: 50%;
+            margin-left: -100px;
+
+            /* Fade in tooltip */
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        /* Show the tooltip text when you mouse over the tooltip container */
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+
+
+        /* Toggle to show / hide */
+        label.label:hover {
+            text-decoration: underline;
+        }
+        .hidecheckbox {
+            position: absolute;
+            left: -999em;
+        }
+        .hide {
+            border: 1px solid #000;
+            opacity: 1;
+            transition: opacity 0.5s linear, max-height 0.5s linear;
+        }
+        /* The "+" operator stands for selecting the next/following div element */
+        input.hidecheckbox[type="checkbox"]:checked + div {
+            opacity: 0;
+            max-height: 0;
+            pointer-events: none;
+            border: none;
+        }
+
+
+        /* Add / remove class "hidden" when I want to hide a row */
+        .hidden {
+            display: none;
+        }        
+    </style>
+
+
+</head>
+    <body>    
+        <div class="space"></div>
+        <div class="grid-container">
+            <div class="row-container limit1">
+                <!-- Version info, last update -->
+                <div class="tooltip title center">Burny's Train Station Blueprint Creator
+                    <span class="tooltiptext">Version 2<br>Last update: 2018 / 10 / 15</span>
+                </div>                
+                <!-- Station type -->
+                <div>Blueprint type:</div>
+                <select class="center" id="blueprinttype" onchange="updateVisibility()">
+                    <option value="loading" selected>Loading Station</option>
+                    <option value="unloading">Unloading Station</option>
+                    <option value="fluidloading">Fluid Loading Station</option>
+                    <option value="fluidunloading">Fluid Unloading Station</option>
+                    <option value="stacker">Stacker</option>
+                </select>
+                <input class="center" type="text" name="" id="stationname" placeholder="Station name">
+            </div>
+            
+            <!-- Sequential station -->
+            <div class="row-container limit2" id="rowsequential">
+                <input type="checkbox" id="sequentialenabled" onchange="updateVisibilitySequential();">
+                <div class="tooltip">Sequential station?
+                    <span class="tooltiptext">This option puts multiple train stations in a row with the same station name which benefits <u>single headed</u> trains.<br><br>
+                    The first station is always enabled, the following stations are only enabled if the previous is busy.<br><br>
+                    Caution: the trains will go to the station even if the train can't completely be unloaded (backlog).<br><br>
+                    Use case: this type of station is useful for dropping off resources at multiple stations to increase throughput. However, this option is also available for loading.</span>
+                </div>                
+                <input type="number" class="center" name="" id="sequentialamount" value="3">
+                <div class="tooltip" id="sequentialamounttooltip"># sequential stations in a row
+                    <span class="tooltiptext">Amount of sequential stations in a row.<br><br>There is no parallel stations options because it was too much effort for too little gain, since you can just place them in parallel without me having to code it. :P</span>
+                </div>                
+                <input type="checkbox" name="" id="sequentialbeltsalltheway" checked>
+                <div class="tooltip" id="sequentialbeltsallthewaytooltip">Belts go all the way
+                    <span class="tooltiptext">If "Belt flow: Front/Back" is chosen, it will make the belts go either<br><br>
+                    Enabled: all the way (all stations)<br><br>
+                    Disabled: only to the front/back of that station</span>
+                </div>                
+            </div>
+
+            <!-- Train type (single or double headed) -->
+            <div class="row-container limit2" id="rowtraintype">
+                <div>Train type:</div>
+                <div></div>
+                <input class="" type="checkbox" name="TrainType" id="traintype" checked>
+                <!-- <div class="line2" class="text">Double headed</div> -->
+                <div class="tooltip">Double headed
+                    <span class="tooltiptext">Put checkmark if your train has locomotives on both ends</span>
+                </div>                
+                <!-- Amount of locomotives per end -->
+                <input class="center" type="number" name="" id="amountlocomotives" value=1>
+                <!-- <div class="text line3"># of locomotives per end</div> -->
+                <div class="tooltip"># locomotives per end
+                    <span class="tooltiptext">The number of locomotives per end</span>
+                </div>                
+                <!-- Amount of cargo wagons -->
+                <input class="center" type="number" name="" id="amountcargowagons" value=2>
+                <div class="tooltip"># cargo wagons
+                    <span class="tooltiptext">The number of total cargo (or fluid) wagons</span>
+                </div>                
+            </div>
+
+            <!-- Inserter type -->
+            <div class="row-container limit2" id="rowinsertertype">     
+                <select class="center" id="insertertype">
+                    <option value="inserter">Inserter</option>
+                    <option value="fast-inserter" selected>Fast inserter</option>
+                    <option value="stack-inserter">Stack inserter</option>
+                </select>     
+                <div class="tooltip">Inserter type
+                    <span class="tooltiptext">
+                        Your chosen inserter type.<br><br>
+                        It will be automatically replaced by the equivalent filter inserter type if you enable the filter inserter checkbox below
+                    </span>
+                </div>      
+                <!-- Enable use of filter inserters when loading / unloading train -->      
+                <input type="checkbox" onchange="updateVisibilityFilters()" name="" id="usefilters">  
+                <div class="tooltip">Enable filter inserters
+                    <span class="tooltiptext">If enabled, your inserters will be replaced by filter inserters of equivalent type. You can set up to 5 filters which will be set to all filter inserters</span>
+                </div>        
+                <input class="" onchange="updateVisibilityFilters()" id="filter1" list="factorioitems" placeholder="Filter 1 - e.g. 'iron-ore'">
+                <input class="" onchange="updateVisibilityFilters()" id="filter2" list="factorioitems" placeholder="Filter 2">
+                <input class="" onchange="updateVisibilityFilters()" id="filter3" list="factorioitems" placeholder="Filter 3">
+                <input class="" onchange="updateVisibilityFilters()" id="filter4" list="factorioitems" placeholder="Filter 4">
+                <input class="" onchange="updateVisibilityFilters()" id="filter5" list="factorioitems" placeholder="Filter 5">
+            </div>
+
+            <div class="row-container limit2" id="rowchesttype">
+                <!-- Chest type --> 
+                <div class="tooltip">Chest type
+                    <span class="tooltiptext">
+                        Your chosen chest type. <br><br>
+                        If you choose a logistic chest, you are given the option to disable inserters and belts. <br><br>
+                        If you select requester or buffer chest, you can set up to 12 items that will be requested (useful for loading a train with logistic bots instead of inserters)
+                    </span>
+                </div>               
+                <select class="center" onchange="updateVisibilityRequesterChest()" name="" id="chesttype">
+                    <option value="iron-chest" selected>Iron chest</option>
+                    <option value="steel-chest">Steel chest</option>
+                    <option value="logistic-chest-requester">Requester chest</option>
+                    <option value="logistic-chest-buffer">Buffer chest</option>
+                    <option value="logistic-chest-passive-provider">Passive provider chest</option>
+                    <option value="logistic-chest-active-provider">Active provider chest</option>
+                    <option value="logistic-chest-storage">Storage chest</option>
+                </select>
+                <!-- Chest limit -->             
+                <div class="tooltip">Chest limit
+                    <span class="tooltiptext">
+                        Limits the chest to X item slots. <br><br>
+                        Leave this field empty or set a negative number to set no limit.
+                    </span>
+                </div>               
+                <input class="center" type="number" name="" id="chestlimit" value=7>   
+                <!-- Requester chest items -->
+                <input class="" onchange="updateVisibilityRequesterChest()" type="text" list="factorioitems" name="" id="request1item" placeholder="Requested item, 'iron-ore'">
+                <input class="" type="number" name="" id="request1amount" placeholder="Request 1 amount">
+
+                <input class="" onchange="updateVisibilityRequesterChest()" type="text" list="factorioitems" name="" id="request2item" placeholder="Requested item 2">
+                <input class="" type="number" name="" id="request2amount" placeholder="Request 2 amount">
+
+                <input class="" onchange="updateVisibilityRequesterChest()" type="text" list="factorioitems" name="" id="request3item" placeholder="Requested item 3">
+                <input class="" type="number" name="" id="request3amount" placeholder="Request 3 amount">
+
+                <input class="" onchange="updateVisibilityRequesterChest()" type="text" list="factorioitems" name="" id="request4item" placeholder="Requested item 4">
+                <input class="" type="number" name="" id="request4amount" placeholder="Request 4 amount">
+
+                <input class="" onchange="updateVisibilityRequesterChest()" type="text" list="factorioitems" name="" id="request5item" placeholder="Requested item 5">
+                <input class="" type="number" name="" id="request5amount" placeholder="Request 5 amount">
+
+                <input class="" onchange="updateVisibilityRequesterChest()" type="text" list="factorioitems" name="" id="request6item" placeholder="Requested item 6">
+                <input class="" type="number" name="" id="request6amount" placeholder="Request 6 amount">
+
+                <input class="" onchange="updateVisibilityRequesterChest()" type="text" list="factorioitems" name="" id="request7item" placeholder="Requested item 7">
+                <input class="" type="number" name="" id="request7amount" placeholder="Request 7 amount">
+
+                <input class="" onchange="updateVisibilityRequesterChest()" type="text" list="factorioitems" name="" id="request8item" placeholder="Requested item 8">
+                <input class="" type="number" name="" id="request8amount" placeholder="Request 8 amount">
+
+                <input class="" onchange="updateVisibilityRequesterChest()" type="text" list="factorioitems" name="" id="request9item" placeholder="Requested item 9">
+                <input class="" type="number" name="" id="request9amount" placeholder="Request 9 amount">
+
+                <input class="" onchange="updateVisibilityRequesterChest()" type="text" list="factorioitems" name="" id="request10item" placeholder="Requested item 10">
+                <input class="" type="number" name="" id="request10amount" placeholder="Request 10 amount">
+
+                <input class="" onchange="updateVisibilityRequesterChest()" type="text" list="factorioitems" name="" id="request11item" placeholder="Requested item 11">
+                <input class="" type="number" name="" id="request11amount" placeholder="Request 11 amount">
+
+                <input class="" onchange="updateVisibilityRequesterChest()" type="text" list="factorioitems" name="" id="request12item" placeholder="Requested item 12">
+                <input class="" type="number" name="" id="request12amount" placeholder="Request 12 amount">
+            </div>
+
+            <!-- Belts -->
+            <div class="row-container limit2" id="rowbelttype">          
+                <!-- Disable belts if logistic chests are enabled -->  
+                <input type="checkbox" onchange="updateVisibilityBeltsOptions()" name="" id="beltsenabled" checked>
+                <div class="tooltip">Enable belts
+                    <span class="tooltiptext">
+                        If you use logistic chests, it is wise to disable belts as logistic chests assume bot loading/unloading instead of loading/unloading via belts.
+                    </span>
+                </div>               
+                <!-- Belt type  -->
+                <div class="tooltip" id="belttypetooltip">Belt type
+                    <span class="tooltiptext">
+                        Your chosen belt type. <br><br>
+                        Splitters will automatically be changed to the equivalent belt speed
+                    </span>
+                </div>   
+                <select class="center" id="belttype">
+                    <option value="transport-belt">Yellow belt</option>
+                    <option value="fast-transport-belt" selected>Red belt</option>
+                    <option value="express-transport-belt">Blue belt</option>
+                </select>              
+                <!-- Which side to use - Left, Right, Both -->
+                <div class="tooltip" id="sidetobeusedtooltip">Sides to be used
+                    <span class="tooltiptext">
+                        If you choose 'right', items will be placed only on the right side (poles, lamps, chests, inserters, storage tanks). <br><br>
+                        If you choose 'both', fuel chest + inserter will only be placed on the right side
+                    </span>
+                </div>   
+                <select class="center" name="" id="sidetobeused">
+                    <option value="left">Left</option>
+                    <option value="right">Right</option>
+                    <option value="both" selected>Both</option>
+                </select>
+                <!-- Belt flow direction -->
+                <div class="tooltip" id="beltflowdirectiontooltip">Belt flow
+                    <span class="tooltiptext">
+                        Disabled if you choose 'None'. <br><br>
+                        Otherwise it will coordinate belts towards the front or back of the train
+                    </span>
+                </div>   
+                <select class="center" name="" id="beltflowdirection">
+                    <option value="front" selected>Front</option>
+                    <option value="back">Back</option>
+                    <!-- <option value="side" selected>Side</option> -->
+                    <option value="none">None</option>
+                </select>
+                <!-- Belt design -->
+                <!-- TODO: make more belt designs -->
+                <div class="text hidden">Belt design</div>
+                <select class="hidden" name="" id="beltdesign">
+                    <option value="basic" selected>Basic</option>
+                </select>
+            </div>
+
+            <!-- Fluid sides to be used (left or right) -->
+            <div class="row-container limit2" id="rowfluidside">
+                <div class="tooltip">Sides to be used
+                    <span class="tooltiptext">
+                        For fluids it didnt look well when using both sides, so I decided to only offer one side when handling fluids.
+                    </span>
+                </div>   
+                <select class="center" name="" id="fluidsidetobeused">
+                    <option value="left">Left</option>
+                    <option value="right" selected>Right</option>
+                </select>
+                <input type="checkbox" name="" id="fluidconnecttanks" checked>
+                <div class="tooltip">Connect tanks with pipe?
+                    <span class="tooltiptext">
+                        There would be a gap between storage tanks if this was disabled. <br><br>
+                        Disable this if you are transporting multiple different fluids in a single train
+                    </span>
+                </div>   
+            </div>
+
+            <!-- Refill at station -->
+            <div class="row-container limit2" id="rowrefill">
+                <input type="checkbox" name="" id="refill" checked>
+                <div class="tooltip">Refill at this station?
+                    <span class="tooltiptext">
+                        This option will put an inserter and a requester chest next to each locomotive for automatic refueling. <br><br>
+                        Recommended for your bases with roboports and fuel storage
+                    </span>
+                </div>   
+                
+                <div class="text">Fuel type</div>
+                <select class="center" id="fueltype">
+                    <option value="raw-wood">Raw wood</option>
+                    <option value="coal">Coal</option>
+                    <option value="solid-fuel" selected>Solid fuel</option>
+                    <option value="rocket-fuel">Rocket fuel</option>
+                    <option value="nuclear-fuel">Nuclear fuel</option>
+                </select>
+                <div class="tooltip">Amount
+                    <span class="tooltiptext">
+                        What are you looking at me? Put a number there already!
+                    </span>
+                </div>   
+                <input class="center" type="number" name="" id="refillamount" value=20>
+            </div> 
+
+            <!-- Connect all chests with green wire -->
+            <div class="row-container limit2" id="rowgreenwire">
+                <input type="checkbox" name="" id="greenwire">
+                <div class="tooltip">Connect chests with green wire?
+                    <span class="tooltiptext">
+                        If enabled, this will connect each side of chests and storage tanks with a green wire. <br><br>
+                        This will not connect left and right side with each other. For that, there is the option below
+                    </span>
+                </div>   
+                <input type="checkbox" name="" id="greenwiresides">
+                <div class="tooltip">Connect left and right side?
+                    <span class="tooltiptext">
+                        If enabled, this will connect the first chest / storage tank of each side with a green wire
+                    </span>
+                </div>   
+            </div>
+            
+            <!-- Connect all chests with red wire -->
+            <div class="row-container limit2" id="rowredwire">
+                <input type="checkbox" name="" id="redwire">
+                <div class="tooltip">Connect chests with red wire?
+                    <span class="tooltiptext">
+                        If enabled, this will connect each side of chests and storage tanks with a red wire. <br><br>
+                        This will not connect left and right side with each other. For that, there is the option below
+                    </span>
+                </div>   
+                <input type="checkbox" name="" id="redwiresides">
+                <div class="tooltip">Connect left and right side?
+                    <span class="tooltiptext">
+                        If enabled, this will connect the first chest / storage tank of each side with a red wire
+                    </span>
+                </div>   
+            </div>
+
+            <!-- Place decider and connect with chests + train station for the train enabled-condition -->            
+            <div class="row-container limit2" id="rowtrainstopcondition">
+                <input type="checkbox" name="" id="trainstopconditionenabled">
+                <div class="tooltip">Train stop uses 'enabled-condition'?
+                    <span class="tooltiptext">
+                        <u>Requires</u>: 'Connect chests with green or red wire'<br>
+                        <u>Caution</u>: This may not work as expected with sequential stations.<br>
+                        If enabled, this will connect chests with wire to the decider combinator at the train stop to be able to set a condition based on chests content.<br><br>
+                        Cargo wagon has 40 slots.<br>
+                        <a href="https://wiki.factorio.com/Stack#Stack_size">Stack sizes:</a><br>
+                        50: Ore<br>
+                        100: Plates<br>
+                        200: Circuits
+                        <br><br>
+                        Fluid wagon has space for 25 000 fluid
+                        <br><br>
+                        Example: For an unloading station, set this to '< 1000' to enable this station when the chests reach a combined content of less than 1000.<br><br>
+                    </span>
+                </div>   
+                <select class="center" id="trainstopconditioncomparator">
+                    <option value=">" selected>> (more than)</option>
+                    <option value="<">< (less than)</option>
+                </select>
+                <input class="center" type="number" id="trainstopconditionamount" value=4000>
+            </div>
+
+            <!-- Lamp near poles -->
+            <div class="row-container limit2" id="rowlamps">
+                <input type="checkbox" name="" id="lampnearpoles">
+                <div class="tooltip">Place lamps near poles?
+                    <span class="tooltiptext">
+                        This will place a lamp near each pole to light things up!
+                    </span>
+                </div>   
+            </div>
+
+            <!-- Stacker info -->
+            <div class="row-container limit2" id="rowstacker">
+                <input class="center" type="number" name="" id="stackerparallel" value="3">
+                <div class="tooltip"># of parallel lanes
+                    <span class="tooltiptext">
+                        For how many trains of this length do you want to have stackers in parallel?
+                    </span>
+                </div>   
+                <input type="checkbox" name="" id="stackerdiagonal" checked>
+                <div class="tooltip">Diagonal stacker?
+                    <span class="tooltiptext">
+                        This option will place the center straight rail tracks in diagonal.<br><br>
+                        The diagonal stacker is more compact than the ones with rail tracks going vertically or horizontally
+                    </span>
+                </div>   
+                <input type="checkbox" name="" id="stackerleftright">
+                <div class="tooltip">Left-right stacker?
+                    <span class="tooltiptext">
+                        I couldn't find a better name for this.<br><br>
+                        This stacker type will make the train go left and then right.<br><br>
+                        Left-left and right-right stackers make no sense because the stacker size increases rapidly, unless you use 90° turns instead of 45° like here
+                    </span>
+                </div>   
+            </div>
+
+            <!-- Generate blueprint button -->
+            <div class="row-container limit1">
+                <button class="center" onclick="generateBlueprint()">Generate Blueprint</button>
+                
+                <input class="center" name="" id="blueprintoutput" value="Blueprint string will be generated here.">
+                <!-- <textarea class="" name="" id="blueprintoutput" cols="30" rows="3" readonly>Blueprint string will be generated here.</textarea> -->
+
+                <button class="center" onclick="copyToClipboard()" id="copyclipboardbutton" href="" download="">Copy to Clipboard</button>
+                <!-- <textarea class="" name="" id="information" cols="30" rows="10">Errors and information will appear here.</textarea> -->
+            </div>
+            
+            <div class="row-container limit1">
+                <!-- Credits toggle-able -->
+                <label for="item-1" class="label">Credits</label>
+                <input class="hidecheckbox" type="checkbox" name="" id="item-1" checked>
+                <div class="hide">
+                    <ul>
+                        <li>Thanks to <a href="https://github.com/kevinta893/factorio-recipes-json">kevinta893</a> for the list of items as json</li>
+                        <li>Thanks to <a href="https://www.reddit.com/r/factorio/comments/4t1hqq/i_made_a_minimalistic_factorio_icon_os_xstyle/d5epbhe/">Clearzenn</a> for the background image</li>
+                        <li>Thanks to <a href="http://danml.com/download.html">dandavis</a> for the JavaScript download library</li>
+                        <li>Thanks to <a href="https://www.reddit.com/r/factorio/comments/6972xv/where_do_i_find_info_about_the_factorio_015/dihs1c1/">Tmin10</a> for the work on <a href="https://factorio.tmin10.ru/">decoding / encoding blueprints via javascript</a></li>
+                        <li>Thanks to <a href=" https://www.minifier.org/">this JavaScript minifier</a></li>
+                    </ul>
+                </div>
+
+                <!-- Contact toggle-able -->
+                <label for="item-2" class="label">Contact</label>
+                <input class="hidecheckbox" type="checkbox" name="" id="item-2" checked>
+                <div class="hide">
+                    <ul>
+                        <li>Email: <a href="mailto:gamingburny@gmail.com">gamingburny@gmail.com</a></li>
+                        <li>Reddit: <a href="https://www.reddit.com/message/compose/?to=burnysc2">BurnySc2</a></li>
+                    </ul>
+                </div>
+
+                <!-- Future plans -->
+                <label for="item-3" class="label">Future plans</label>
+                <input class="hidecheckbox" type="checkbox" name="" id="item-3" checked>
+                <div class="hide">
+                    <ul>
+                        <li>Add more belt layouts (e.g. to the side, or only to one side with underground belts</li>
+                        <li><a href="https://www.reddit.com/r/factorio/comments/6d2qgs/compact_3_compressed_blue_belts_train_unloader/">Improved Inserter-to-belt ratio</a></li>
+                        <li><a href="https://mods.factorio.com/mod/BurnysTSBC/discussion/5a5f1b0dadcc441024d77252">Compatibility to other mods</a></li>
+                    </ul>
+                </div>
+
+                <!-- Changelog -->
+                <label for="item-4" class="label">Changelog</label>
+                <input class="hidecheckbox" type="checkbox" name="" id="item-4" checked>
+                <div class="hide">
+                    <ul>
+                        <li>Version 3 - 2018/10/21
+                            <ul>
+                                <li>Added enabled / disabled condition based on chest/storage tank contents including support with sequential station (not recommended to use both together)</li>
+                            </ul>
+                        </li>
+                        <li>Version 2 - 2018/10/15
+                            <ul>
+                                <li>Added <a href="https://www.reddit.com/r/factorio/comments/67xuyq/apologies_if_im_late_the_new_train_stop_interface/">Sequential train stations</a> for loading/unloading and both fluid stations</li>
+                            </ul>
+                        </li>
+                        <li>Version 1 - 2018/10/14
+                            <ul>
+                                <li>Exact port from <a href="https://mods.factorio.com/mods/Burny/BurnysTSBC">my mod</a></li>
+                                <li>Removal of MadZuri's evenly train (un-)loader circuit network</li>
+                                <li>Added better filter and requester chest options</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>        
+        <!-- <div class="space"></div> -->
+
+    </body>
+</html>
+
+<datalist id="factorioitems">
+	<option value="accumulator">accumulator</option>
+	<option value="advanced-circuit">advanced-circuit</option>
+	<option value="arithmetic-combinator">arithmetic-combinator</option>
+	<option value="artillery-shell">artillery-shell</option>
+	<option value="artillery-targeting-remote">artillery-targeting-remote</option>
+	<option value="artillery-turret">artillery-turret</option>
+	<option value="artillery-wagon">artillery-wagon</option>
+	<option value="assembling-machine-1">assembling-machine-1</option>
+	<option value="assembling-machine-2">assembling-machine-2</option>
+	<option value="assembling-machine-3">assembling-machine-3</option>
+	<option value="atomic-bomb">atomic-bomb</option>
+	<option value="battery">battery</option>
+	<option value="battery-mk1">battery-mk1</option>
+	<option value="battery-mk2">battery-mk2</option>
+	<option value="beacon">beacon</option>
+	<option value="big-electric-pole">big-electric-pole</option>
+	<option value="blueprint">blueprint</option>
+	<option value="blueprint-book">blueprint-book</option>
+	<option value="boiler">boiler</option>
+	<option value="burner-inserter">burner-inserter</option>
+	<option value="burner-mining-drill">burner-mining-drill</option>
+	<option value="cannon-shell">cannon-shell</option>
+	<option value="car">car</option>
+	<option value="cargo-wagon">cargo-wagon</option>
+	<option value="centrifuge">centrifuge</option>
+	<option value="chemical-plant">chemical-plant</option>
+	<option value="cliff-explosives">cliff-explosives</option>
+	<option value="cluster-grenade">cluster-grenade</option>
+	<option value="coal">coal</option>
+	<option value="combat-shotgun">combat-shotgun</option>
+	<option value="concrete">concrete</option>
+	<option value="constant-combinator">constant-combinator</option>
+	<option value="construction-robot">construction-robot</option>
+	<option value="copper-cable">copper-cable</option>
+	<option value="copper-ore">copper-ore</option>
+	<option value="copper-plate">copper-plate</option>
+	<option value="crude-oil">crude-oil</option>
+	<option value="crude-oil-barrel">crude-oil-barrel</option>
+	<option value="decider-combinator">decider-combinator</option>
+	<option value="deconstruction-planner">deconstruction-planner</option>
+	<option value="defender-capsule">defender-capsule</option>
+	<option value="destroyer-capsule">destroyer-capsule</option>
+	<option value="discharge-defense">discharge-defense</option>
+	<option value="discharge-defense-remote">discharge-defense-remote</option>
+	<option value="distractor-capsule">distractor-capsule</option>
+	<option value="effectivity-module">effectivity-module</option>
+	<option value="effectivity-module-2">effectivity-module-2</option>
+	<option value="effectivity-module-3">effectivity-module-3</option>
+	<option value="electric-engine-unit">electric-engine-unit</option>
+	<option value="electric-furnace">electric-furnace</option>
+	<option value="electric-mining-drill">electric-mining-drill</option>
+	<option value="electronic-circuit">electronic-circuit</option>
+	<option value="empty-barrel">empty-barrel</option>
+	<option value="energy-shield">energy-shield</option>
+	<option value="energy-shield-mk2">energy-shield-mk2</option>
+	<option value="engine-unit">engine-unit</option>
+	<option value="exoskeleton">exoskeleton</option>
+	<option value="explosive-cannon-shell">explosive-cannon-shell</option>
+	<option value="explosive-rocket">explosive-rocket</option>
+	<option value="explosive-uranium-cannon-shell">explosive-uranium-cannon-shell</option>
+	<option value="explosives">explosives</option>
+	<option value="express-splitter">express-splitter</option>
+	<option value="express-transport-belt">express-transport-belt</option>
+	<option value="express-underground-belt">express-underground-belt</option>
+	<option value="fast-inserter">fast-inserter</option>
+	<option value="fast-splitter">fast-splitter</option>
+	<option value="fast-transport-belt">fast-transport-belt</option>
+	<option value="fast-underground-belt">fast-underground-belt</option>
+	<option value="filter-inserter">filter-inserter</option>
+	<option value="firearm-magazine">firearm-magazine</option>
+	<option value="flamethrower">flamethrower</option>
+	<option value="flamethrower-ammo">flamethrower-ammo</option>
+	<option value="flamethrower-turret">flamethrower-turret</option>
+	<option value="fluid-wagon">fluid-wagon</option>
+	<option value="flying-robot-frame">flying-robot-frame</option>
+	<option value="gate">gate</option>
+	<option value="green-wire">green-wire</option>
+	<option value="grenade">grenade</option>
+	<option value="gun-turret">gun-turret</option>
+	<option value="hazard-concrete">hazard-concrete</option>
+	<option value="heat-exchanger">heat-exchanger</option>
+	<option value="heat-pipe">heat-pipe</option>
+	<option value="heavy-armor">heavy-armor</option>
+	<option value="heavy-oil">heavy-oil</option>
+	<option value="heavy-oil-barrel">heavy-oil-barrel</option>
+	<option value="high-tech-science-pack">high-tech-science-pack</option>
+	<option value="inserter">inserter</option>
+	<option value="iron-axe">iron-axe</option>
+	<option value="iron-chest">iron-chest</option>
+	<option value="iron-gear-wheel">iron-gear-wheel</option>
+	<option value="iron-ore">iron-ore</option>
+	<option value="iron-plate">iron-plate</option>
+	<option value="iron-stick">iron-stick</option>
+	<option value="kovarex-enrichment-process">kovarex-enrichment-process</option>
+	<option value="lab">lab</option>
+	<option value="lamp">lamp</option>
+	<option value="land-mine">land-mine</option>
+	<option value="landfill">landfill</option>
+	<option value="laser-turret">laser-turret</option>
+	<option value="light-armor">light-armor</option>
+	<option value="light-oil">light-oil</option>
+	<option value="light-oil-barrel">light-oil-barrel</option>
+	<option value="locomotive">locomotive</option>
+	<option value="logistic-chest-active-provider">logistic-chest-active-provider</option>
+	<option value="logistic-chest-buffer">logistic-chest-buffer</option>
+	<option value="logistic-chest-passive-provider">logistic-chest-passive-provider</option>
+	<option value="logistic-chest-requester">logistic-chest-requester</option>
+	<option value="logistic-chest-storage">logistic-chest-storage</option>
+	<option value="logistic-robot">logistic-robot</option>
+	<option value="long-handed-inserter">long-handed-inserter</option>
+	<option value="low-density-structure">low-density-structure</option>
+	<option value="lubricant">lubricant</option>
+	<option value="lubricant-barrel">lubricant-barrel</option>
+	<option value="medium-electric-pole">medium-electric-pole</option>
+	<option value="military-science-pack">military-science-pack</option>
+	<option value="modular-armor">modular-armor</option>
+	<option value="nightvision">nightvision</option>
+	<option value="nuclear-fuel">nuclear-fuel</option>
+	<option value="nuclear-fuel-reprocessing">nuclear-fuel-reprocessing</option>
+	<option value="nuclear-reactor">nuclear-reactor</option>
+	<option value="offshore-pump">offshore-pump</option>
+	<option value="oil-refinery">oil-refinery</option>
+	<option value="personal-laser-defense">personal-laser-defense</option>
+	<option value="personal-roboport">personal-roboport</option>
+	<option value="personal-roboport-mk2">personal-roboport-mk2</option>
+	<option value="petroleum-gas">petroleum-gas</option>
+	<option value="petroleum-gas-barrel">petroleum-gas-barrel</option>
+	<option value="piercing-rounds-magazine">piercing-rounds-magazine</option>
+	<option value="piercing-shotgun-shells">piercing-shotgun-shells</option>
+	<option value="pipe">pipe</option>
+	<option value="pipe-to-ground">pipe-to-ground</option>
+	<option value="pistol">pistol</option>
+	<option value="plastic-bar">plastic-bar</option>
+	<option value="poison-capsule">poison-capsule</option>
+	<option value="portable-fusion-reactor">portable-fusion-reactor</option>
+	<option value="portable-solar-panel">portable-solar-panel</option>
+	<option value="power-armor">power-armor</option>
+	<option value="power-armor-mk2">power-armor-mk2</option>
+	<option value="power-switch">power-switch</option>
+	<option value="processing-unit">processing-unit</option>
+	<option value="production-science-pack">production-science-pack</option>
+	<option value="productivity-module">productivity-module</option>
+	<option value="productivity-module-2">productivity-module-2</option>
+	<option value="productivity-module-3">productivity-module-3</option>
+	<option value="programmable-speaker">programmable-speaker</option>
+	<option value="pump">pump</option>
+	<option value="pumpjack">pumpjack</option>
+	<option value="radar">radar</option>
+	<option value="rail">rail</option>
+	<option value="rail-chain-signal">rail-chain-signal</option>
+	<option value="rail-signal">rail-signal</option>
+	<option value="raw-fish">raw-fish</option>
+	<option value="raw-wood">raw-wood</option>
+	<option value="red-wire">red-wire</option>
+	<option value="refined-concrete">refined-concrete</option>
+	<option value="refined-hazard-concrete">refined-hazard-concrete</option>
+	<option value="repair-pack">repair-pack</option>
+	<option value="roboport">roboport</option>
+	<option value="rocket">rocket</option>
+	<option value="rocket-control-unit">rocket-control-unit</option>
+	<option value="rocket-fuel">rocket-fuel</option>
+	<option value="rocket-launcher">rocket-launcher</option>
+	<option value="rocket-part">rocket-part</option>
+	<option value="rocket-silo">rocket-silo</option>
+	<option value="satellite">satellite</option>
+	<option value="science-pack-1">science-pack-1</option>
+	<option value="science-pack-2">science-pack-2</option>
+	<option value="science-pack-3">science-pack-3</option>
+	<option value="shotgun">shotgun</option>
+	<option value="shotgun-shells">shotgun-shells</option>
+	<option value="slowdown-capsule">slowdown-capsule</option>
+	<option value="small-electric-pole">small-electric-pole</option>
+	<option value="solar-panel">solar-panel</option>
+	<option value="solid-fuel">solid-fuel</option>
+	<option value="space-science-pack">space-science-pack</option>
+	<option value="speed-module">speed-module</option>
+	<option value="speed-module-2">speed-module-2</option>
+	<option value="speed-module-3">speed-module-3</option>
+	<option value="splitter">splitter</option>
+	<option value="stack-filter-inserter">stack-filter-inserter</option>
+	<option value="stack-inserter">stack-inserter</option>
+	<option value="steam">steam</option>
+	<option value="steam-engine">steam-engine</option>
+	<option value="steam-turbine">steam-turbine</option>
+	<option value="steel-axe">steel-axe</option>
+	<option value="steel-chest">steel-chest</option>
+	<option value="steel-furnace">steel-furnace</option>
+	<option value="steel-plate">steel-plate</option>
+	<option value="stone">stone</option>
+	<option value="stone-brick">stone-brick</option>
+	<option value="stone-furnace">stone-furnace</option>
+	<option value="stone-wall">stone-wall</option>
+	<option value="storage-tank">storage-tank</option>
+	<option value="submachine-gun">submachine-gun</option>
+	<option value="substation">substation</option>
+	<option value="sulfur">sulfur</option>
+	<option value="sulfuric-acid">sulfuric-acid</option>
+	<option value="sulfuric-acid-barrel">sulfuric-acid-barrel</option>
+	<option value="tank">tank</option>
+	<option value="train-stop">train-stop</option>
+	<option value="transport-belt">transport-belt</option>
+	<option value="underground-belt">underground-belt</option>
+	<option value="uranium-235">uranium-235</option>
+	<option value="uranium-238">uranium-238</option>
+	<option value="uranium-cannon-shell">uranium-cannon-shell</option>
+	<option value="uranium-fuel-cell">uranium-fuel-cell</option>
+	<option value="uranium-ore">uranium-ore</option>
+	<option value="uranium-processing">uranium-processing</option>
+	<option value="uranium-rounds-magazine">uranium-rounds-magazine</option>
+	<option value="used-up-uranium-fuel-cell">used-up-uranium-fuel-cell</option>
+	<option value="water">water</option>
+	<option value="water-barrel">water-barrel</option>
+	<option value="wood">wood</option>
+	<option value="wooden-chest">wooden-chest</option>
+</datalist>

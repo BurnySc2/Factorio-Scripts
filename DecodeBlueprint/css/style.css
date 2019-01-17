@@ -1,0 +1,24 @@
+*, html, body {
+  font-family: 'Roboto', sans-serif;
+}
+#container {
+  width: 50%;
+}
+.back {
+    width: 20%;
+}
+.col {
+  float: left;
+  width: 45%;
+  margin: 0 2.5%;
+}
+.col textarea {
+  width: 95%;
+  height: 150px;
+}
+#container button {
+  /*width: 93.5%;*/
+  width: 43.75%;
+  margin-left: 2.5%;
+  font-weight: bold;
+}

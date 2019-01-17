@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en" >
+
+<head>
+  <meta charset="UTF-8">
+  <title>Factorio Blueprint Assemblers Production</title>
+  
+  
+  
+      <link rel="stylesheet" href="css/style.css">
+
+  
+</head>
+
+<body>
+
+  <div class="goback">
+    <button onclick="goBack()">Go Back</button>
+</div>
+<div id="container">
+	
+	<div class="col">
+		<div>
+			<h3 id="t1header">Factorio Blueprint:</h3>
+			<textarea id="t1">Blueprint String</textarea>
+		</div>
+		<div class="button">
+			<button onclick="myFunction()" type="button">Calculate Production</button>	
+		</div>
+		
+		<label for="Output">Output</label>
+		<select name="Output" id="outputScale">
+			<option value="second">per Second</option>
+			<option value="minute">per Minute</option>
+			<option value="hour">per Hour</option>
+		</select>
+		<p></p>
+		<label for="Rounding">Round Result</label>
+		<select name="roundOutput" id="roundOutputPrecision">
+			<option value=0>0 Decimals</option>
+			<option value=1>1 Decimal</option>
+			<option selected value=2>2 Decimals</option>
+			<option value=3>3 Decimals</option>
+			<option value=4>4 Decimals</option>
+			<option value=5>5 Decimals</option>
+		</select>
+		
+	</div>
+	<div class="col">
+		<h3 id="t2header">Output per Second:</h3>
+		<textarea id="t2">
+Example Result:
+30 iron-ore
+15 copper-ore</textarea>
+		<div>
+			<label id="info" for="info">
+Not included:<br>Electric Furnaces, Pumpjacks<br><br>Not in Calculation:<br>Inserters (insertion speed)<br>Belts (transport speed)</label>
+		</div>
+	</div>
+  <script src='https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.4/lodash.min.js'></script>
+<script src='https://cdnjs.cloudflare.com/ajax/libs/pako/1.0.6/pako.js'></script>
+<script src='https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js'></script>
+
+  
+
+    <script  src="js/index.js"></script>
+
+
+
+
+</body>
+
+</html>
